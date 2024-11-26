@@ -1,0 +1,132 @@
+class MazeSolver {
+    constructor(maze) {
+        this.maze = maze.map(row => row.split(''));
+        this.start = this.findPoint('S');
+        this.letters = ['A', 'B', 'C'];
+        this.directions = [
+            [0, 1], [1, 0], [0, -1], [-1, 0]
+        ];
+        this.points = this.findPoints();
+        this.distances = this.calculateDistances();
+    }
+
+    findPoint(char) {
+        for (let i = 0; i < this.maze.length; i++) {
+            for (let j = 0; j < this.maze[i].length; j++) {
+                if (this.maze[i][j] === char) {
+                    return [i, j];
+                }
+            }
+        }
+    }
+
+    findPoints() {
+        let points = [this.start];
+        this.letters.forEach(letter => {
+            for (let i = 0; i < this.maze.length; i++) {
+                for (let j = 0; j < this.maze[i].length; j++) {
+                    if (this.maze[i][j] === letter) {
+                        points.push([i, j]);
+                    }
+                }
+            }
+        });
+        points.push(this.start);
+        return points;
+    }
+
+    isSafe(x, y) {
+        return (
+            x >= 0 && y >= 0 && x < this.maze.length && y < this.maze[0].length &&
+            this.maze[x][y] !== '~' && this.maze[x][y] !== '#'
+        );
+    }
+
+    bfs(start, end) {
+        let queue = [[...start, 0]];
+        let visited = new Set();
+        visited.add(start.toString());
+
+        while (queue.length > 0) {
+            let [x, y, dist] = queue.shift();
+
+            if (x === end[0] && y === end[1]) {
+                return dist;
+            }
+
+            for (let [dx, dy] of this.directions) {
+                let nx = x + dx, ny = y + dy;
+
+                if (this.isSafe(nx, ny) && !visited.has([nx, ny].toString())) {
+                    queue.push([nx, ny, dist + 1]);
+                    visited.add([nx, ny].toString());
+                }
+            }
+        }
+
+        return Infinity;
+    }
+
+    calculateDistances() {
+        let n = this.points.length;
+        let distances = Array.from({ length: n }, () => Array(n).fill(Infinity));
+
+        for (let i = 0; i < n; i++) {
+            for (let j = i + 1; j < n; j++) {
+                let dist = this.bfs(this.points[i], this.points[j]);
+                distances[i][j] = dist;
+                distances[j][i] = dist;
+            }
+        }
+
+        return distances;
+    }
+
+    tsp() {
+        let n = this.points.length;
+        let dp = Array.from({ length: 1 << n }, () => Array(n).fill(Infinity));
+        dp[1][0] = 0;
+
+        for (let mask = 1; mask < (1 << n); mask += 2) {
+            for (let u = 1; u < n; u++) {
+                if (!(mask & (1 << u))) continue;
+                for (let v = 0; v < n; v++) {
+                    if (mask & (1 << v)) continue;
+                    let dist = this.distances[u][v];
+                    if (dist !== Infinity) {
+                        dp[mask | (1 << v)][v] = Math.min(
+                            dp[mask | (1 << v)][v],
+                            dp[mask][u] + dist
+                        );
+                    }
+                }
+            }
+        }
+
+        let minDist = Infinity;
+        for (let i = 1; i < n; i++) {
+            let dist = this.distances[i][0];
+            if (dist !== Infinity) {
+                minDist = Math.min(minDist, dp[(1 << n) - 1][i] + dist);
+            }
+        }
+
+        return minDist;
+    }
+}
+
+const maze = [
+    '##########S##########',
+    '#...................#',
+    '#.###.##.###.##.#.#.#',
+    '#..A#.#..~~~....#A#.#',
+    '#.#...#.~~~~~...#.#.#',
+    '#.#.#.#.~~~~~.#.#.#.#',
+    '#...#.#.B~~~B.#.#...#',
+    '#...#....BBB..#....##',
+    '#C............#....C#',
+    '#####################'
+];
+
+const solver = new MazeSolver(maze);
+console.log(solver.tsp());
